@@ -36,8 +36,13 @@ INPUT outBuffer[OUT_BUFFER_SIZE];
 unsigned outBufferHead;
 unsigned outBufferTail;
 
-short activationKeys[2] = { 0x1D, 0x5B };
-int keysDown[2] = { 0, 0 };
+#define KEY_MAIN_ACTIVATE_MOD  0x1D // ctrl
+#define KEY_QUICK_ACTIVATE_MOD 0x38 // alt
+#define KEY_ACTIVATE		   0x5B // win
+
+int downMainMod = 0;
+int downQuickMod = 0;
+int downActivate = 0;
 
 #define INPUT_WAIT 1234
 
@@ -52,10 +57,10 @@ int mode = 0;
 int active = 0;
 int mouseX = 0;
 int mouseY = 0;
-int topLeftX;
-int topLeftY;
-int bottomRightX;
-int bottomRightY;
+int topLeftX = 400;
+int topLeftY = 400;
+int bottomRightX = 800;
+int bottomRightY = 800;
 
 HANDLE queueReady;
 char running = 1;
@@ -205,7 +210,8 @@ void delay(unsigned ms) {
 	pushBuffer(&ip);
 }
 
-void showActivate(int state) {
+void showActivate(int state, int ms) {
+	pressMouse(0);
 	if(state)
 		puts("Activating drawing mode");
 	else
@@ -214,76 +220,87 @@ void showActivate(int state) {
 	int h = bottomRightY-topLeftY;
 	if (state) {
 		moveMouse(topLeftX, topLeftY);
-		delay(200);
+		delay(ms);
 		moveMouse(bottomRightX, topLeftY);
-		delay(200);
+		delay(ms);
 		moveMouse(bottomRightX, bottomRightY);
-		delay(200);
+		delay(ms);
 		moveMouse(topLeftX, bottomRightY);
-		delay(200);
+		delay(ms);
 		moveMouse(topLeftX, topLeftY);
 	}
 	else {
 		moveMouse(bottomRightX, bottomRightY);
-		delay(200);
+		delay(ms);
 		moveMouse(bottomRightX, topLeftY);
-		delay(200);
+		delay(ms);
 		moveMouse(topLeftX, topLeftY);
-		delay(200);
+		delay(ms);
 		moveMouse(topLeftX, bottomRightY);
-		delay(200);
+		delay(ms);
 		moveMouse(bottomRightX, bottomRightY);
 	}
 }
 
 void handleKeyboard(USHORT code, USHORT flags) {
-	int allDown = 1;
-	int pressed = 0;
-	for (int i=0; i<sizeof(activationKeys)/sizeof(*activationKeys); i++) {
-		if (code == activationKeys[i]) {
-			int value = (flags & 1) ^ 1;
-			if (value != keysDown[i]) {
-				pressed = value;
-				keysDown[i] = value;
+	int down = (flags & 1) ^ 1;
+	if (code == KEY_MAIN_ACTIVATE_MOD) 
+		downMainMod = down;
+	else if (code == KEY_QUICK_ACTIVATE_MOD)
+		downQuickMod = down;
+	else if (code == KEY_ACTIVATE) {
+		downActivate = down;
+		if (downActivate) {
+			switch(mode) {
+				case MODE_NONE:
+					topLeftX = mouseX;
+					topLeftY = mouseY;
+					mode = MODE_FIRST_CORNER;
+					puts("Press ctrl+win to define other corner and enter drawing mode.");
+					break;
+				case MODE_FIRST_CORNER:
+					if (mouseX < topLeftX) {
+						bottomRightX = topLeftX;
+						topLeftX = mouseX;
+					}
+					else {
+						bottomRightX = mouseX;
+					}
+					if (mouseY < topLeftY) {
+						bottomRightY = topLeftY;
+						topLeftY = mouseY;
+					}
+					else {
+						bottomRightY = mouseY;
+					}
+					mode = MODE_ACTIVE;
+					touching = 0;
+					showActivate(1,200);
+					drawX = -1;
+					drawY = -1;
+					break;
+				case MODE_ACTIVE:
+					showActivate(0,200);
+					mode = MODE_NONE;
+					puts("Press ctrl+win to define first corner or alt+win to return to previous area.");
+					break;
 			}
 		}
-		allDown = allDown && keysDown[i];
-	}
-	if (pressed && allDown) {
-		switch(mode) {
-			case MODE_NONE:
-				topLeftX = mouseX;
-				topLeftY = mouseY;
-				mode = MODE_FIRST_CORNER;
-				break;
-			case MODE_FIRST_CORNER:
-				if (mouseX < topLeftX) {
-					bottomRightX = topLeftX;
-					topLeftX = mouseX;
-				}
-				else {
-					bottomRightX = mouseX;
-				}
-				if (mouseY < topLeftY) {
-					bottomRightY = topLeftY;
-					topLeftY = mouseY;
-				}
-				else {
-					bottomRightY = mouseY;
-				}
+		else if (downQuickMod) {
+			if (mode == MODE_ACTIVE) {				
+				showActivate(0,100);
+				mode = MODE_NONE;				
+			}
+			else {
 				mode = MODE_ACTIVE;
 				touching = 0;
-				showActivate(1);
+				showActivate(1,200);
 				drawX = -1;
 				drawY = -1;
-				break;
-			case MODE_ACTIVE:
-				showActivate(0);
-				pressMouse(0);
-				mode = MODE_NONE;
-				break;
+			}
 		}
 	}
+	
 }
 
 LRESULT CALLBACK EventHandler(
@@ -451,9 +468,10 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE hPrevInstance,
     queueReady = CreateEvent(NULL, FALSE, FALSE, (LPTSTR)("queueReady"));
     HANDLE queueThread = CreateThread(NULL, 0, handleQueue, NULL, 0, NULL);
 
-	puts("Move mouse to upper left of drawing area and press leftctrl+win,\n"
-		 "then move mouse to lower right and press leftctrl+win again to enter\n"
-		 "drawing mode. Then press leftctrl+win to exit drawing mode.\n"
+	puts("Move mouse to upper left of drawing area and press ctrl+win,\n"
+		 "then move mouse to lower right and press ctrl+win again to enter\n"
+		 "drawing mode. Then press ctrl+win or alt+win to exit drawing mode.\n"
+		 "Use alt+win to start drawing with a previously defined drawing area.\n\n"
 		 "Press ctrl+c in this window to quit.");
 
     MSG message;
