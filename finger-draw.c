@@ -250,7 +250,7 @@ void handleKeyboard(USHORT code, USHORT flags) {
 		downQuickMod = down;
 	else if (code == KEY_ACTIVATE) {
 		downActivate = down;
-		if (downActivate) {
+		if (downActivate && downMainMod) {
 			switch(mode) {
 				case MODE_NONE:
 					topLeftX = mouseX;
@@ -286,12 +286,13 @@ void handleKeyboard(USHORT code, USHORT flags) {
 					break;
 			}
 		}
-		else if (downQuickMod) {
+		else if (downActivate && downQuickMod) {
 			if (mode == MODE_ACTIVE) {				
 				showActivate(0,100);
 				mode = MODE_NONE;				
 			}
 			else {
+				printf("%d %d %d %d\n",topLeftX,topLeftY,bottomRightX,bottomRightY);
 				mode = MODE_ACTIVE;
 				touching = 0;
 				showActivate(1,200);
