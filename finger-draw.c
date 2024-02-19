@@ -163,14 +163,14 @@ int haveButtonCap(HIDP_BUTTON_CAPS* cap, unsigned usagePage, unsigned usage) {
 	}
 }
 
-long getScaled(unsigned scale, unsigned usagePage, unsigned usage, PHIDP_PREPARSED_DATA preparsed, unsigned char* data, unsigned dataSize) {
+long getScaled(unsigned scale, unsigned usagePage, unsigned usage, unsigned scaleUsagePage, unsigned scaleUsage, PHIDP_PREPARSED_DATA preparsed, unsigned char* data, unsigned dataSize) {
 	long x;
 	long res = HidP_GetUsageValue(HidP_Input, usagePage, 0, usage, &x, preparsed, data, dataSize);
 	if (res < 0)
 		return -1;
 	static HIDP_VALUE_CAPS cap[IN_BUFFER_SIZE / sizeof(HIDP_VALUE_CAPS)];
 	SHORT length = sizeof(cap)/sizeof(HIDP_VALUE_CAPS);
-	res = HidP_GetSpecificValueCaps(HidP_Input, usagePage, 0, usage, cap, &length, preparsed);
+	res = HidP_GetSpecificValueCaps(HidP_Input, scaleUsagePage, 0, scaleUsage, cap, &length, preparsed);
 	if (res < 0)
 		return -1;
 	if (cap[0].LogicalMax <= cap[0].LogicalMin)
@@ -280,6 +280,7 @@ void handleKeyboard(USHORT code, USHORT flags) {
 					drawY = -1;
 					break;
 				case MODE_ACTIVE:
+					printf("area: (%d,%d)-(%d,%d)\n",topLeftX,topLeftY,bottomRightX,bottomRightY);
 					showActivate(0,200);
 					mode = MODE_NONE;
 					puts("Press ctrl+win to define first corner or alt+win to return to previous area.");
@@ -292,7 +293,7 @@ void handleKeyboard(USHORT code, USHORT flags) {
 				mode = MODE_NONE;				
 			}
 			else {
-				printf("%d %d %d %d\n",topLeftX,topLeftY,bottomRightX,bottomRightY);
+				printf("area: (%d,%d)-(%d,%d)\n",topLeftX,topLeftY,bottomRightX,bottomRightY);
 				mode = MODE_ACTIVE;
 				touching = 0;
 				showActivate(1,200);
@@ -352,11 +353,11 @@ LRESULT CALLBACK EventHandler(
 					break;
 				}
 			}
-			
+
 			int x,y;
-			x = getScaled(bottomRightX-topLeftX, 0x01, 0x30, preparsed, data->data.hid.bRawData, data->data.hid.dwSizeHid);
+			x = getScaled(bottomRightX-topLeftX, 0x01, 0x30, 0x01, 0x30, preparsed, data->data.hid.bRawData, data->data.hid.dwSizeHid);
 			if (x>=0) {
-				y = getScaled(bottomRightX-topLeftX, 0x01, 0x31, preparsed, data->data.hid.bRawData, data->data.hid.dwSizeHid);
+				y = getScaled(bottomRightX-topLeftX, 0x01, 0x31, 0x01, 0x30, preparsed, data->data.hid.bRawData, data->data.hid.dwSizeHid);
 				if (y>=0) {
 					x+=topLeftX;
 					y+=topLeftY;
