@@ -54,10 +54,10 @@ int mode = 0;
 int active = 0;
 int mouseX = 0;
 int mouseY = 0;
-int topLeftX = 400;
-int topLeftY = 400;
-int bottomRightX = 800;
-int bottomRightY = 800;
+int topLeftX;
+int topLeftY;
+int bottomRightX;
+int bottomRightY;
 
 HANDLE queueReady;
 char running = 1;
@@ -126,7 +126,7 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
 			mouseX = p->pt.x;
 			mouseY = p->pt.y;
 		}
-		
+
 		if (p->flags & LLMHF_INJECTED) {
 		}
 		else {
@@ -382,12 +382,26 @@ LRESULT CALLBACK EventHandler(
     return DefWindowProc(hwnd, event, wparam, lparam);
 }
 
+void help() {
+	MessageBox(0, 
+"finger-draw [options]\n"
+"\n"
+"Options:\n\n"
+"--help : this message\n"
+"--shift-lift : lift pen on shift [default]\n"
+"--shift-down : lower pen on shift\n"
+"--shift-none : ignore shift key\n"
+"--window topLeftX,topLeftY,bottomRightX,bottomRightY : set box coordinates [default: full screen]\n"
+, "Help", 0);
+}
+
 int processOptions(char* cmdLine) {
 	char* token;
 	char* src;
 	src = cmdLine;
 
 	while (NULL != (token = strtok(src, " "))) {
+		src = NULL;
 		if (!strcmp(token, "--shift-lift")) {
 			shiftMode = SHIFT_MODE_LIFT;
 		}
@@ -397,18 +411,16 @@ int processOptions(char* cmdLine) {
 		else if (!strcmp(token, "--shift-none")) {
 			shiftMode = SHIFT_MODE_NONE;
 		}
+		else if (!strcmp(token, "--window")) {
+			if (NULL == (token = strtok(src, " "))) {
+				help();
+				return 0;
+			}
+		}
 		else if (!strcmp(token, "--help") || !strcmp(token, "-h")) {
-			MessageBox(0, 
-"finger-draw [options]\n"
-"\n"
-"Options:\n\n"
-"--help : this message\n"
-"--shift-lift : lift pen on shift [default]\n"
-"--shift-down : lower pen on shift\n"
-"--shift-none : ignore shift key\n", "Help", 0);
+			help();
 			return 0;
 		}
-		src = NULL;
 	}
 	return 1;
 }
@@ -416,10 +428,18 @@ int processOptions(char* cmdLine) {
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE hPrevInstance,
     PSTR lpCmdLine, int nCmdShow)
 {
+    const char* class_name = "finger-draw-2941248-class";
+	
+	SetProcessDPIAware();
+	int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+	int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+	topLeftX = 0;
+	topLeftY = 0;
+	bottomRightX = screenWidth;
+	bottomRightY = screenHeight;
+
 	if (!processOptions(lpCmdLine))
 		return 0;
-	
-    const char* class_name = "finger-draw-2941248-class";
 	
     //HINSTANCE instance = GetModuleHandle(0);
     WNDCLASS window_class = {};
@@ -436,8 +456,6 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE hPrevInstance,
         return -1;
 	
 	//SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_SYSTEM_AWARE);
-	//screenWidth = GetSystemMetrics(SM_CXSCREEN);
-	//screenHeight = GetSystemMetrics(SM_CYSCREEN);
 
     RAWINPUTDEVICE rid[2];
 	//touchpad
