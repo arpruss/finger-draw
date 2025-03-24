@@ -416,6 +416,7 @@ int processOptions(char* cmdLine) {
 				help();
 				return 0;
 			}
+			sscanf(token,"%d,%d,%d,%d",&topLeftX,&topLeftY,&bottomRightX,&bottomRightY);
 		}
 		else if (!strcmp(token, "--help") || !strcmp(token, "-h")) {
 			help();
