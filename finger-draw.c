@@ -6,8 +6,8 @@
 #include <time.h>
 #include <stdio.h>
 
-#define OUT_BUFFER_SIZE 4096
-#define IN_BUFFER_SIZE  4096
+#define OUT_BUFFER_SIZE 16384
+#define IN_BUFFER_SIZE  16384
 
 enum {
 	SHIFT_MODE_NONE = 0,
